@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { Utils } from '@/lib/utils';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -34,21 +35,17 @@ export default function AuthPage() {
     console.log('Attempting login with:', { phone: loginPhone });
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const data = await Utils.apiFetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: loginPhone, password: loginPwd }),
+        body: { phone: loginPhone, password: loginPwd },
       });
-      console.log('Response status:', res.status);
-      const data = await res.json();
       console.log('Response data:', data);
-      if (!res.ok) return showError(data.error);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       router.replace('/chat');
     } catch (error) {
       console.error('Login error:', error);
-      showError('Connection error');
+      showError(error.message);
     } finally {
       setLoading(false);
     }
@@ -60,18 +57,15 @@ export default function AuthPage() {
     if (regPwd.length < 6) return showError('Password must be at least 6 characters');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
+      const data = await Utils.apiFetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: regName, phone: regPhone, password: regPwd }),
+        body: { name: regName, phone: regPhone, password: regPwd },
       });
-      const data = await res.json();
-      if (!res.ok) return showError(data.error);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       router.replace('/chat');
-    } catch {
-      showError('Connection error');
+    } catch (error) {
+      showError(error.message);
     } finally {
       setLoading(false);
     }

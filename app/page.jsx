@@ -28,24 +28,35 @@ export default function AuthPage() {
   async function handleLogin(e) {
     console.log('Login form submitted');
     e.preventDefault();
+    console.log('Form data:', { loginPhone, loginPwd });
+    
     if (!loginPhone || !loginPwd) {
       console.log('Missing fields:', { loginPhone, loginPwd });
-      return showError('All fields required');
+      return showError('Phone and password required');
     }
-    console.log('Attempting login with:', { phone: loginPhone });
+    
+    console.log('Attempting login with:', { phone: loginPhone.trim() });
     setLoading(true);
+    
     try {
+      console.log('Making API call...');
       const data = await Utils.apiFetch('/api/auth/login', {
         method: 'POST',
-        body: { phone: loginPhone, password: loginPwd },
+        body: { phone: loginPhone.trim(), password: loginPwd },
       });
-      console.log('Response data:', data);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      router.replace('/chat');
+      console.log('API Response success:', data);
+      
+      if (data.token && data.user) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        console.log('Login successful, redirecting to chat...');
+        router.replace('/chat');
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      showError(error.message);
+      console.error('Login error details:', error);
+      showError(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -78,6 +89,12 @@ export default function AuthPage() {
           <h1>WhatsApp Web</h1>
           <p>Send and receive messages without keeping your phone online.</p>
           <p>Use WhatsApp on up to 4 linked devices and 1 phone at the same time.</p>
+          {/* Test credentials for debugging */}
+          <div style={{ marginTop: '20px', padding: '10px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px' }}>
+            <strong>Test Credentials:</strong><br/>
+            Phone: 9693856331<br/>
+            Password: 123456
+          </div>
         </div>
       </div>
       <div className="auth-right">

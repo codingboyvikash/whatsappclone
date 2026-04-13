@@ -4,7 +4,7 @@ const nextConfig = {
   allowedDevOrigins: ['192.168.50.211'],
   // Production configuration
   assetPrefix: process.env.NODE_ENV === 'production' ? 'https://youryory.site' : '',
-  // Simple webpack config for production
+  // Simple webpack config
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -19,6 +19,10 @@ const nextConfig = {
   // Environment variables for production
   env: {
     CUSTOM_KEY: process.env.NODE_ENV === 'production' ? 'production-value' : 'development-value',
+    // Disable HMR in production
+    ...(process.env.NODE_ENV === 'production' && {
+      DISABLE_FAST_REFRESH: 'true',
+    }),
   },
 };
 

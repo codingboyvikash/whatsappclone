@@ -19,7 +19,8 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  if (typeof app.getUpgradeHandler === 'function') {
+  // Only handle Next.js WebSocket upgrades in development mode
+  if (dev && typeof app.getUpgradeHandler === 'function') {
     httpServer.on('upgrade', (req, socket, head) => {
       app.getUpgradeHandler()(req, socket, head).catch((err) => {
         console.error('Next.js websocket upgrade error:', err);

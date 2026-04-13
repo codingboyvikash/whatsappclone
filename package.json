@@ -6,7 +6,9 @@
     "dev": "node server.js --host",
     "dev:webpack": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
-    "start": "node server.js"
+    "build:prod": "NODE_ENV=production next build",
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

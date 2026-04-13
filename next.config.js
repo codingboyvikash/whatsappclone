@@ -12,6 +12,8 @@ const nextConfig = {
       },
     },
   },
+  // Production configuration
+  assetPrefix: process.env.NODE_ENV === 'production' ? 'https://youryory.site' : '',
   // Disable Turbopack temporarily to avoid panic errors
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -23,6 +25,10 @@ const nextConfig = {
       };
     }
     return config;
+  },
+  // Environment variables for production
+  env: {
+    CUSTOM_KEY: process.env.NODE_ENV === 'production' ? 'production-value' : 'development-value',
   },
 };
 

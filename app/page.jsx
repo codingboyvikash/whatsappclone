@@ -25,8 +25,13 @@ export default function AuthPage() {
   }
 
   async function handleLogin(e) {
+    console.log('Login form submitted');
     e.preventDefault();
-    if (!loginPhone || !loginPwd) return showError('All fields required');
+    if (!loginPhone || !loginPwd) {
+      console.log('Missing fields:', { loginPhone, loginPwd });
+      return showError('All fields required');
+    }
+    console.log('Attempting login with:', { phone: loginPhone });
     setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
@@ -34,12 +39,15 @@ export default function AuthPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: loginPhone, password: loginPwd }),
       });
+      console.log('Response status:', res.status);
       const data = await res.json();
+      console.log('Response data:', data);
       if (!res.ok) return showError(data.error);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       router.replace('/chat');
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       showError('Connection error');
     } finally {
       setLoading(false);

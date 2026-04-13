@@ -6,9 +6,9 @@
     "dev": "node server.js --host",
     "dev:webpack": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
-    "build:prod": "NODE_ENV=production next build",
+    "build:prod": "cross-env NODE_ENV=production next build --webpack",
     "start": "node server.js",
-    "start:prod": "NODE_ENV=production node server.js"
+    "start:prod": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -23,5 +23,8 @@
     "react-dom": "19.2.4",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

@@ -89,12 +89,7 @@ export default function AuthPage() {
           <h1>WhatsApp Web</h1>
           <p>Send and receive messages without keeping your phone online.</p>
           <p>Use WhatsApp on up to 4 linked devices and 1 phone at the same time.</p>
-          {/* Test credentials for debugging */}
-          <div style={{ marginTop: '20px', padding: '10px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '12px' }}>
-            <strong>Test Credentials:</strong><br/>
-            Phone: 9693856331<br/>
-            Password: 123456
-          </div>
+         
         </div>
       </div>
       <div className="auth-right">

@@ -2,6 +2,7 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
+const path = require('path');
 require('dotenv').config(); // ✅ .env use करो (not .env.local)
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -14,6 +15,28 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
+    
+    // ✅ Serve static files from public directory
+    if (req.url.startsWith('/assets/')) {
+      const filePath = path.join(__dirname, 'public', req.url);
+      const fs = require('fs');
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filePath);
+        const contentType = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+        }[ext] || 'application/octet-stream';
+        
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+    }
+    
     handle(req, res, parsedUrl);
   });
 

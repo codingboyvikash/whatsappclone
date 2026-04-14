@@ -7,10 +7,16 @@ import { Utils } from '@/lib/utils';
 // ─── Avatar Helper ───────────────────────────────────────────────────────────
 function Avatar({ user, size = '', style = {} }) {
   const cls = `avatar${size ? ` avatar-${size}` : ''}`;
+  const getAvatarUrl = (avatar) => {
+    if (!avatar) return null;
+    if (avatar.startsWith('http')) return avatar;
+    return `${Utils.getBaseUrl()}${avatar}`;
+  };
+  
   return (
     <div className={cls} style={style}>
       {user?.avatar ? (
-        <img src={user.avatar} alt="" />
+        <img src={getAvatarUrl(user.avatar)} alt="" />
       ) : (
         <div className="avatar-default" style={{ display: 'flex' }}>
           {Utils.getInitials(user?.name || '?')}

@@ -413,7 +413,17 @@ export default function ChatPage() {
     socket.on('call_ice_candidate', async ({ candidate, from }) => {
       try {
         if (peerConnectionRef.current && candidate) {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          // Check if remote description is set before adding ICE candidate
+          if (peerConnectionRef.current.remoteDescription) {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            console.log('Remote description not set yet, buffering ICE candidate');
+            // Buffer the candidate until remote description is set
+            if (!window.bufferedIceCandidates) {
+              window.bufferedIceCandidates = [];
+            }
+            window.bufferedIceCandidates.push(candidate);
+          }
         }
       } catch (err) {
         console.error('Error adding ICE candidate:', err);
@@ -550,12 +560,56 @@ export default function ChatPage() {
   }
 
   // ── Calls ──────────────────────────────────────────────────────────────────
+  // Test microphone access
+  async function testMicrophone() {
+    console.log('=== MICROPHONE TEST ===');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone access granted');
+      console.log('Stream:', stream);
+      console.log('Audio tracks:', stream.getAudioTracks());
+      
+      // Test playing audio
+      if (localAudioRef.current) {
+        localAudioRef.current.srcObject = stream;
+        console.log('Audio stream set to localAudioRef');
+      } else {
+        console.log('localAudioRef.current is null');
+      }
+      
+      // Stop test after 3 seconds
+      setTimeout(() => {
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Test stream stopped');
+      }, 3000);
+      
+      return true;
+    } catch (err) {
+      console.error('Microphone test failed:', err);
+      return false;
+    }
+  }
+
   async function initiateCall(type) {
+    console.log('=== VOICE CALL DEBUG: initiateCall started ===');
+    console.log('Call type:', type);
+    console.log('Current chat ID:', currentChatId);
+    console.log('Socket available:', !!socket);
+    
+    // Test microphone first
+    const micTest = await testMicrophone();
+    if (!micTest) {
+      alert('Microphone access denied. Please allow microphone access.');
+      return;
+    }
+    
     if (!currentChatId || !socket) return;
     const chat = chats.find((c) => c._id === currentChatId);
     if (!chat || chat.isGroup) return;
     const other = chat.participants.find((p) => p._id?.toString() !== currentUser._id?.toString());
     if (!other) return;
+
+    console.log('Other user:', other);
 
     try {
       // Get local media stream
@@ -568,14 +622,26 @@ export default function ChatPage() {
         } : false
       };
 
+      console.log('Media constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Local stream obtained:', stream);
+      console.log('Audio tracks:', stream.getAudioTracks());
+      console.log('Video tracks:', stream.getVideoTracks());
+      
       localStreamRef.current = stream;
 
       // Set local media streams immediately
       if (type === 'video' && localVideoRef.current) {
+        console.log('Setting video stream to localVideoRef');
         localVideoRef.current.srcObject = stream;
       } else if (type === 'voice' && localAudioRef.current) {
+        console.log('Setting audio stream to localAudioRef');
+        console.log('localAudioRef.current:', localAudioRef.current);
         localAudioRef.current.srcObject = stream;
+        console.log('Audio stream set to localAudioRef');
+      } else {
+        console.log('ERROR: Could not find audio element for', type, 'call');
+        console.log('localAudioRef.current:', localAudioRef.current);
       }
 
       // Create peer connection
@@ -595,17 +661,36 @@ export default function ChatPage() {
 
       // Handle remote stream
       pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        remoteStreamRef.current = remoteStream;
+        console.log('=== VOICE CALL DEBUG: ontrack event ===');
+        console.log('Event:', event);
+        console.log('Event streams:', event.streams);
         
-        // Handle video streams
-        if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-        
-        // Handle audio streams for voice calls
-        if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
-          remoteAudioRef.current.srcObject = remoteStream;
+        if (event.streams && event.streams.length > 0) {
+          const remoteStream = event.streams[0];
+          console.log('Remote stream:', remoteStream);
+          console.log('Remote audio tracks:', remoteStream.getAudioTracks());
+          console.log('Remote video tracks:', remoteStream.getVideoTracks());
+          
+          remoteStreamRef.current = remoteStream;
+          
+          // Handle video streams
+          if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
+            console.log('Setting remote video stream');
+            remoteVideoRef.current.srcObject = remoteStream;
+          }
+          
+          // Handle audio streams for voice calls
+          if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
+            console.log('Setting remote audio stream');
+            console.log('remoteAudioRef.current:', remoteAudioRef.current);
+            remoteAudioRef.current.srcObject = remoteStream;
+            console.log('Remote audio stream set');
+          } else {
+            console.log('No remote audio tracks found or audio element not available');
+            console.log('remoteAudioRef.current:', remoteAudioRef.current);
+          }
+        } else {
+          console.log('No streams in ontrack event');
         }
       };
 
@@ -649,6 +734,12 @@ export default function ChatPage() {
   }
 
   async function answerCall(callerId, callerName, callType, callId, offer, dbCallId) {
+    console.log('=== VOICE CALL DEBUG: answerCall started ===');
+    console.log('Caller ID:', callerId);
+    console.log('Caller Name:', callerName);
+    console.log('Call Type:', callType);
+    console.log('Call ID:', callId);
+    
     try {
       const constraints = {
         audio: true,
@@ -659,7 +750,11 @@ export default function ChatPage() {
         } : false
       };
 
+      console.log('Answer call constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Answer call stream obtained:', stream);
+      console.log('Answer call audio tracks:', stream.getAudioTracks());
+      
       localStreamRef.current = stream;
 
       // Set local media streams immediately
@@ -707,6 +802,20 @@ export default function ChatPage() {
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      
+      // Process any buffered ICE candidates
+      if (window.bufferedIceCandidates && window.bufferedIceCandidates.length > 0) {
+        console.log('Processing buffered ICE candidates:', window.bufferedIceCandidates.length);
+        for (const candidate of window.bufferedIceCandidates) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error('Error adding buffered ICE candidate:', err);
+          }
+        }
+        window.bufferedIceCandidates = [];
+      }
+      
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -1020,6 +1129,10 @@ export default function ChatPage() {
 
     const monitorNetworkQuality = setInterval(async () => {
       try {
+        if (!peerConnectionRef.current) {
+          console.log('Peer connection is null, skipping network quality check');
+          return;
+        }
         const stats = await peerConnectionRef.current.getStats();
         let totalBitrate = 0;
         let totalPacketLoss = 0;
@@ -1498,7 +1611,7 @@ export default function ChatPage() {
             )}
 
             {/* Input area */}
-            <div className="message-input-area" id="message-input-area" style={{ position: 'relative' }}>
+            <div className="message-input-area" id="message-input-area" >
               {/* Emoji picker */}
               {showEmoji && (
                 <div className="emoji-picker" id="emoji-picker" onClick={(e) => e.stopPropagation()}>
@@ -2298,19 +2411,6 @@ export default function ChatPage() {
                     {Utils.getInitials(callName)}
                   </div>
                 </div>
-                {/* Hidden audio elements for voice calls */}
-                <audio
-                  ref={localAudioRef}
-                  autoPlay
-                  muted
-                  style={{ display: 'none' }}
-                />
-                <audio
-                  ref={remoteAudioRef}
-                  autoPlay
-                  playsInline
-                  style={{ display: 'none' }}
-                />
               </div>
             )}
             <div className="call-info">
@@ -2428,6 +2528,20 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Hidden audio elements for all calls */}
+      <audio
+        ref={localAudioRef}
+        autoPlay
+        muted
+        style={{ display: 'none' }}
+      />
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }

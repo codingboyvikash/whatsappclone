@@ -68,14 +68,19 @@ export default function AuthPage() {
     if (regPwd.length < 6) return showError('Password must be at least 6 characters');
     setLoading(true);
     try {
+      console.log('Registering user:', { name: regName, phone: regPhone });
       const data = await Utils.apiFetch('/api/auth/register', {
         method: 'POST',
         body: { name: regName, phone: regPhone, password: regPwd },
       });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      router.replace('/chat');
+      console.log('Registration successful:', data);
+      showError('Registration successful! Please login.');
+      setRegName('');
+      setRegPhone('');
+      setRegPwd('');
+      setTab('login');
     } catch (error) {
+      console.error('Registration failed:', error);
       showError(error.message);
     } finally {
       setLoading(false);

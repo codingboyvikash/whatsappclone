@@ -30,7 +30,7 @@ export async function PUT(request) {
     if (body.profilePhotoPrivacy) updates.profilePhotoPrivacy = body.profilePhotoPrivacy;
     if (body.aboutPrivacy) updates.aboutPrivacy = body.aboutPrivacy;
     if (body.readReceipts !== undefined) updates.readReceipts = body.readReceipts;
-    const user = await User.findByIdAndUpdate(userId, updates, { new: true });
+    const user = await User.findByIdAndUpdate(userId, updates, { returnDocument: 'after' });
     return Response.json(user);
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

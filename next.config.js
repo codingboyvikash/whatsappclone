@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['mongoose', 'bcryptjs', 'multer'],
-  allowedDevOrigins: ['192.168.50.211'],
+  allowedDevOrigins: ['192.168.50.211', '13.205.233.45','https://youryory.site'],
   // Production configuration
   assetPrefix: process.env.NODE_ENV === 'production' ? 'https://youryory.site' : '',
   // Simple webpack config

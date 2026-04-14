@@ -291,14 +291,17 @@ export default function ChatPage() {
 
   async function fetchMe(t) {
     try {
+      console.log('Fetching user data with token:', t?.substring(0, 20) + '...');
       const user = await apiFetch('/api/users/me', {}, t);
+      console.log('User data received:', user);
       setCurrentUser(user);
       setSettingsName(user.name || '');
       setSettingsAbout(user.about || '');
       localStorage.setItem('user', JSON.stringify(user));
       loadChats(t);
       loadContacts(t);
-    } catch {
+    } catch (error) {
+      console.error('fetchMe failed:', error);
       localStorage.removeItem('token');
       router.replace('/');
     }
@@ -476,11 +479,12 @@ export default function ChatPage() {
 
   // ── New chat / group ───────────────────────────────────────────────────────
   async function searchUsers(q) {
-    try { setSearchedUsers(await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`)); } catch {}
+    if (!token) return;
+    try { setSearchedUsers(await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`, {}, token)); } catch {}
   }
 
-  useEffect(() => { searchUsers(newChatSearch); }, [newChatSearch]);
-  useEffect(() => { if (showNewGroup) searchUsers(groupSearch); }, [groupSearch, showNewGroup]);
+  useEffect(() => { searchUsers(newChatSearch); }, [newChatSearch, token]);
+  useEffect(() => { if (showNewGroup) searchUsers(groupSearch); }, [groupSearch, showNewGroup, token]);
 
   async function startNewChat(userId) {
     try {

@@ -2054,6 +2054,7 @@ select {
 
   .app.chat-open .main-chat {
     display: flex;
+    overflow: scroll;
   }
 
   .chat-back-btn {

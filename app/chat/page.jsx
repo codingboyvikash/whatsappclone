@@ -1111,6 +1111,7 @@ export default function ChatPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('isProfileAvatar', 'true');
       const result = await apiFetch('/api/media/upload', { method: 'POST', body: formData });
       setProfileEditAvatar(result.url);
     } catch (err) {
@@ -1872,69 +1873,247 @@ export default function ChatPage() {
           <div className="modal profile-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <button className="icon-btn back-btn" id="close-profile" aria-label="Back" title="Back" onClick={closeProfile}>
-                ←
+                <svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/></svg>
               </button>
               <h3>Profile</h3>
             </div>
-            <div className="modal-body profile-modal-body">
-              <div
-                className="profile-avatar"
-                onClick={() => (profileEditAvatar || profileUser.avatar) && setShowProfileImageViewer(true)}
-                style={{ cursor: profileEditAvatar || profileUser.avatar ? 'pointer' : 'default' }}
-              >
-                <Avatar user={{ ...profileUser, avatar: profileEditAvatar || profileUser.avatar }} size="md" />
-                {profileEditMode && (
-                  <>
-                    <button className="profile-action-btn" style={{ marginTop: 12, width: 'auto' }} onClick={(e) => { e.stopPropagation(); profileFileInputRef.current?.click(); }}>
-                      Change photo
-                    </button>
-                    <input
-                      ref={profileFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) uploadProfileAvatar(file);
-                        e.target.value = '';
-                      }}
-                    />
-                  </>
-                )}
+            <div className="modal-body profile-modal-body" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              padding: '20px 0',
+              background: '#111b21',
+              minHeight: '400px'
+            }}>
+              {/* Profile Avatar Section */}
+              <div style={{ position: 'relative', marginBottom: '20px' }}>
+                <div
+                  onClick={() => !profileEditMode && (profileEditAvatar || profileUser.avatar) && setShowProfileImageViewer(true)}
+                  style={{ cursor: profileEditAvatar || profileUser.avatar ? 'pointer' : 'default' }}
+                >
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <Avatar user={{ ...profileUser, avatar: profileEditAvatar || profileUser.avatar }} size="lg" />
+                    {profileEditMode && (
+                      <div 
+                        className="profile-camera-overlay"
+                        onClick={(e) => { e.stopPropagation(); profileFileInputRef.current?.click(); }}
+                        style={{
+                          position: 'absolute',
+                          bottom: '0',
+                          right: '0',
+                          width: '36px',
+                          height: '36px',
+                          backgroundColor: '#008069',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          border: '3px solid #111b21',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={profileFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadProfileAvatar(file);
+                  }}
+                />
               </div>
-              <div className="profile-name">{profileUser.name || 'Unknown'}</div>
-              <div className="profile-about">{profileUser.about || 'Hey there! I am using WhatsApp'}</div>
+
+              {/* Profile Info */}
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <div style={{ 
+                  fontSize: '20px', 
+                  fontWeight: '500', 
+                  color: '#e9edef',
+                  marginBottom: '4px'
+                }}>
+                  {profileEditMode ? (
+                    <input
+                      type="text"
+                      value={profileEditName}
+                      onChange={(e) => setProfileEditName(e.target.value)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: profileEditMode ? '2px solid #008069' : 'none',
+                        color: '#e9edef',
+                        fontSize: '20px',
+                        fontWeight: '500',
+                        textAlign: 'center',
+                        outline: 'none',
+                        padding: '4px 8px'
+                      }}
+                      placeholder="Your name"
+                    />
+                  ) : (
+                    profileUser.name || 'Unknown'
+                  )}
+                </div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: '#8696a0',
+                  marginBottom: '16px',
+                  minHeight: '20px'
+                }}>
+                  {profileEditMode ? (
+                    <textarea
+                      value={profileEditAbout}
+                      onChange={(e) => setProfileEditAbout(e.target.value)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: '2px solid #008069',
+                        color: '#8696a0',
+                        fontSize: '14px',
+                        textAlign: 'center',
+                        outline: 'none',
+                        padding: '4px 8px',
+                        resize: 'none',
+                        minHeight: '20px',
+                        maxHeight: '60px',
+                        width: '200px'
+                      }}
+                      placeholder="Hey there! I am using WhatsApp"
+                      rows={1}
+                    />
+                  ) : (
+                    profileUser.about || 'Hey there! I am using WhatsApp'
+                  )}
+                </div>
+              </div>
+
+              {/* Phone Number */}
               {profileUser.phone && (
-                <div className="profile-phone">
-                  <span>Phone</span>
-                  <div>{profileUser.phone}</div>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  padding: '0 20px',
+                  width: '100%'
+                }}>
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#8696a0',
+                    marginBottom: '4px',
+                    textAlign: 'center'
+                  }}>
+                    Phone number
+                  </div>
+                  <div style={{ 
+                    fontSize: '16px', 
+                    color: '#e9edef',
+                    textAlign: 'center'
+                  }}>
+                    {profileUser.phone}
+                  </div>
                 </div>
               )}
-              <div className="profile-actions">
+
+              {/* Action Buttons */}
+              <div style={{ width: '100%', padding: '0 20px', marginTop: 'auto' }}>
                 {profileUser._id?.toString() === currentUser?._id?.toString() ? (
                   profileEditMode ? (
-                    <>
-                      <div className="profile-edit-row">
-                        <label>Name</label>
-                        <input type="text" value={profileEditName} onChange={(e) => setProfileEditName(e.target.value)} />
-                      </div>
-                      <div className="profile-edit-row">
-                        <label>About</label>
-                        <textarea value={profileEditAbout} onChange={(e) => setProfileEditAbout(e.target.value)} rows={3} />
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-                        <button className="auth-btn" style={{ flex: 1 }} onClick={saveProfileChanges}>Save</button>
-                        <button className="profile-action-btn" style={{ flex: 1 }} onClick={() => setProfileEditMode(false)}>Cancel</button>
-                      </div>
-                    </>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button 
+                        onClick={saveProfileChanges}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          backgroundColor: '#008069',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => setProfileEditMode(false)}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          backgroundColor: 'transparent',
+                          color: '#008069',
+                          border: '1px solid #008069',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   ) : (
-                    <button className="auth-btn" style={{ width: '100%', marginTop: 16 }} onClick={() => setProfileEditMode(true)}>Edit profile</button>
+                    <button 
+                      onClick={() => setProfileEditMode(true)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: 'transparent',
+                        color: '#008069',
+                        border: '1px solid #008069',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Edit profile
+                    </button>
                   )
                 ) : (
-                  <>
-                    <button className="profile-action-btn" onClick={() => { closeProfile(); initiateCall('voice'); }}>Voice call</button>
-                    <button className="profile-action-btn" onClick={() => { closeProfile(); initiateCall('video'); }}>Video call</button>
-                  </>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button 
+                      onClick={() => { closeProfile(); initiateCall('voice'); }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: 'transparent',
+                        color: '#008069',
+                        border: '1px solid #008069',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Voice call
+                    </button>
+                    <button 
+                      onClick={() => { closeProfile(); initiateCall('video'); }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: 'transparent',
+                        color: '#008069',
+                        border: '1px solid #008069',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Video call
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -208,6 +208,8 @@ export default function ChatPage() {
   const callDurationRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const localAudioRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -569,6 +571,13 @@ export default function ChatPage() {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
+      // Set local media streams immediately
+      if (type === 'video' && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      } else if (type === 'voice' && localAudioRef.current) {
+        localAudioRef.current.srcObject = stream;
+      }
+
       // Create peer connection
       const pc = new RTCPeerConnection({
         iceServers: [
@@ -586,10 +595,18 @@ export default function ChatPage() {
 
       // Handle remote stream
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        const remoteStream = event.streams[0];
+        remoteStreamRef.current = remoteStream;
+        
+        // Handle video streams
+        if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
+          remoteVideoRef.current.srcObject = remoteStream;
         }
-        remoteStreamRef.current = event.streams[0];
+        
+        // Handle audio streams for voice calls
+        if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
+          remoteAudioRef.current.srcObject = remoteStream;
+        }
       };
 
       // ICE candidate handling
@@ -645,6 +662,13 @@ export default function ChatPage() {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
+      // Set local media streams immediately
+      if (callType === 'video' && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      } else if (callType === 'voice' && localAudioRef.current) {
+        localAudioRef.current.srcObject = stream;
+      }
+
       const pc = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -659,10 +683,18 @@ export default function ChatPage() {
       });
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        const remoteStream = event.streams[0];
+        remoteStreamRef.current = remoteStream;
+        
+        // Handle video streams
+        if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
+          remoteVideoRef.current.srcObject = remoteStream;
         }
-        remoteStreamRef.current = event.streams[0];
+        
+        // Handle audio streams for voice calls
+        if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
+          remoteAudioRef.current.srcObject = remoteStream;
+        }
       };
 
       pc.onicecandidate = (event) => {
@@ -2266,6 +2298,19 @@ export default function ChatPage() {
                     {Utils.getInitials(callName)}
                   </div>
                 </div>
+                {/* Hidden audio elements for voice calls */}
+                <audio
+                  ref={localAudioRef}
+                  autoPlay
+                  muted
+                  style={{ display: 'none' }}
+                />
+                <audio
+                  ref={remoteAudioRef}
+                  autoPlay
+                  playsInline
+                  style={{ display: 'none' }}
+                />
               </div>
             )}
             <div className="call-info">

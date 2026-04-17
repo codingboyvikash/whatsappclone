@@ -10,6 +10,12 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/whatsapp-clone?r
 JWT_SECRET=your-super-secure-jwt-secret-key-for-production
 NODE_ENV=production
 PORT=3000
+
+# WebRTC calls
+NEXT_PUBLIC_STUN_URLS=stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302
+NEXT_PUBLIC_TURN_URLS=turn:your-turn-domain:3478,turns:your-turn-domain:5349
+NEXT_PUBLIC_TURN_USERNAME=your-turn-username
+NEXT_PUBLIC_TURN_CREDENTIAL=your-turn-password
 ```
 
 ### 2. MongoDB Setup
@@ -34,6 +40,7 @@ npm run start:prod
 ## Important Notes
 
 - The application uses a custom server with Socket.IO
+- Audio/video calls need a TURN server in production. STUN-only calls may ring and show connected, but media can fail on mobile networks, carrier NAT, or strict routers.
 - MongoDB connection uses IPv4 in production
 - JWT secret must be changed for production security
 - Ensure all environment variables are set in production

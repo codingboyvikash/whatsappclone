@@ -193,6 +193,8 @@ export default function ChatPage() {
   const [callVideoQuality, setCallVideoQuality] = useState('HD');
   const [callNetworkQuality, setCallNetworkQuality] = useState('good');
   const [incomingCall, setIncomingCall] = useState(null);
+  const [localVideoReady, setLocalVideoReady] = useState(false);
+  const [remoteVideoReady, setRemoteVideoReady] = useState(false);
   const [facingMode, setFacingMode] = useState('user');
   const [screenSharing, setScreenSharing] = useState(false);
   const [callRecording, setCallRecording] = useState(false);
@@ -267,6 +269,58 @@ export default function ChatPage() {
     }
   }, []);
 
+  const getIceServers = useCallback(() => {
+    const stunUrls = (process.env.NEXT_PUBLIC_STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302')
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const turnUrls = (process.env.NEXT_PUBLIC_TURN_URLS || '')
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
+
+    const iceServers = [];
+    if (stunUrls.length) iceServers.push({ urls: stunUrls });
+    if (turnUrls.length) {
+      iceServers.push({
+        urls: turnUrls,
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME || '',
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || '',
+      });
+    }
+
+    return iceServers;
+  }, []);
+
+  const createCallPeerConnection = useCallback(() => {
+    const pc = new RTCPeerConnection({
+      iceServers: getIceServers(),
+      iceCandidatePoolSize: 10,
+    });
+
+    pc.onconnectionstatechange = () => {
+      console.log('Call connection state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        setCallStatus('Connected');
+      } else if (pc.connectionState === 'failed') {
+        setCallStatus('Connection failed. TURN server required.');
+      } else if (pc.connectionState === 'disconnected') {
+        setCallStatus('Connection interrupted...');
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('Call ICE state:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setCallStatus('Connected');
+      } else if (pc.iceConnectionState === 'failed') {
+        setCallStatus('Media connection failed. Add TURN server.');
+      }
+    };
+
+    return pc;
+  }, [getIceServers]);
+
   const startRemoteAudio = useCallback(async (remoteStream) => {
     if (!remoteStream?.getAudioTracks().length) {
       console.warn('No remote audio track available to play');
@@ -307,6 +361,7 @@ export default function ChatPage() {
     const remoteStream = remoteStreamRef.current;
 
     if (localStream) {
+      setLocalVideoReady(localStream.getVideoTracks().some((track) => track.readyState === 'live'));
       if (callType === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
         playMediaElement(localVideoRef.current);
@@ -318,6 +373,7 @@ export default function ChatPage() {
     }
 
     if (remoteStream) {
+      setRemoteVideoReady(remoteStream.getVideoTracks().some((track) => track.readyState === 'live'));
       if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
         remoteVideoRef.current.srcObject = remoteStream;
         playMediaElement(remoteVideoRef.current);
@@ -331,6 +387,34 @@ export default function ChatPage() {
       }
     }
   }, [callType, playMediaElement, startRemoteAudio]);
+
+  const handleRemoteTrack = useCallback((event, label) => {
+    const remoteStream = event.streams?.[0] || remoteStreamRef.current || new MediaStream();
+    if (event.track && !remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+      remoteStream.addTrack(event.track);
+    }
+
+    event.track.onunmute = () => {
+      console.log(`${label} remote track unmuted:`, event.track.kind);
+      attachCallStreams();
+    };
+
+    console.log(`${label} remote audio tracks:`, remoteStream.getAudioTracks().map((track) => ({
+      id: track.id,
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+    })));
+    console.log(`${label} remote video tracks:`, remoteStream.getVideoTracks().map((track) => ({
+      id: track.id,
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+    })));
+
+    remoteStreamRef.current = remoteStream;
+    attachCallStreams();
+  }, [attachCallStreams]);
 
   useEffect(() => {
     if (!callActive) return;
@@ -731,10 +815,14 @@ export default function ChatPage() {
 
       // Get local media stream
       const constraints = {
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: type === 'video' ? {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
         } : false
       };
@@ -746,6 +834,7 @@ export default function ChatPage() {
       console.log('Video tracks:', stream.getVideoTracks());
       
       localStreamRef.current = stream;
+      setLocalVideoReady(stream.getVideoTracks().some((track) => track.readyState === 'live'));
 
       // Set local media streams immediately
       if (type === 'video') {
@@ -767,12 +856,7 @@ export default function ChatPage() {
       }
 
       // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
+      const pc = createCallPeerConnection();
 
       peerConnectionRef.current = pc;
 
@@ -786,18 +870,7 @@ export default function ChatPage() {
         console.log('=== VOICE CALL DEBUG: ontrack event ===');
         console.log('Event:', event);
         console.log('Event streams:', event.streams);
-        
-        const remoteStream = event.streams?.[0] || remoteStreamRef.current || new MediaStream();
-        if (!event.streams?.length && event.track && !remoteStream.getTracks().some((track) => track.id === event.track.id)) {
-          remoteStream.addTrack(event.track);
-        }
-
-        console.log('Remote stream:', remoteStream);
-        console.log('Remote audio tracks:', remoteStream.getAudioTracks());
-        console.log('Remote video tracks:', remoteStream.getVideoTracks());
-
-        remoteStreamRef.current = remoteStream;
-        attachCallStreams();
+        handleRemoteTrack(event, 'Caller');
       };
 
       // ICE candidate handling
@@ -808,14 +881,6 @@ export default function ChatPage() {
             candidate: event.candidate
           });
         }
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log('Call connection state:', pc.connectionState);
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        console.log('Call ICE state:', pc.iceConnectionState);
       };
 
       // Create offer
@@ -858,10 +923,14 @@ export default function ChatPage() {
       await unlockCallAudio();
 
       const constraints = {
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: callType === 'video' ? {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
         } : false
       };
@@ -872,6 +941,7 @@ export default function ChatPage() {
       console.log('Answer call audio tracks:', stream.getAudioTracks());
       
       localStreamRef.current = stream;
+      setLocalVideoReady(stream.getVideoTracks().some((track) => track.readyState === 'live'));
 
       // Set local media streams immediately
       if (callType === 'video' && localVideoRef.current) {
@@ -880,12 +950,7 @@ export default function ChatPage() {
         localAudioRef.current.srcObject = stream;
       }
 
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
+      const pc = createCallPeerConnection();
 
       peerConnectionRef.current = pc;
 
@@ -894,15 +959,8 @@ export default function ChatPage() {
       });
 
       pc.ontrack = (event) => {
-        const remoteStream = event.streams?.[0] || remoteStreamRef.current || new MediaStream();
-        if (!event.streams?.length && event.track && !remoteStream.getTracks().some((track) => track.id === event.track.id)) {
-          remoteStream.addTrack(event.track);
-        }
         console.log('=== VOICE CALL DEBUG: answer ontrack event ===');
-        console.log('Answer remote audio tracks:', remoteStream.getAudioTracks());
-        console.log('Answer remote video tracks:', remoteStream.getVideoTracks());
-        remoteStreamRef.current = remoteStream;
-        attachCallStreams();
+        handleRemoteTrack(event, 'Receiver');
       };
 
       pc.onicecandidate = (event) => {
@@ -912,14 +970,6 @@ export default function ChatPage() {
             candidate: event.candidate
           });
         }
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log('Call connection state:', pc.connectionState);
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        console.log('Call ICE state:', pc.iceConnectionState);
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -1018,6 +1068,8 @@ export default function ChatPage() {
     setCallMuted(false);
     setCallCameraOn(true);
     setCallSpeakerOn(false);
+    setLocalVideoReady(false);
+    setRemoteVideoReady(false);
     setScreenSharing(false);
     setCallRecording(false);
     setClosedCaptions(false);
@@ -1087,6 +1139,7 @@ export default function ChatPage() {
 
       // Update local video
       localStreamRef.current = newStream;
+      setLocalVideoReady(newStream.getVideoTracks().some((track) => track.readyState === 'live'));
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = newStream;
       }
@@ -2485,9 +2538,16 @@ export default function ChatPage() {
 
       {/* ── INCOMING CALL OVERLAY ── */}
       {incomingCall && (
-        <div className="call-overlay incoming-call-overlay">
-          <div className="call-screen incoming-call-screen">
-            <div className="call-avatar">
+        <div className={`call-overlay incoming-call-overlay ${incomingCall.callType === 'video' ? 'video-incoming' : ''}`}>
+          <div className="call-screen incoming-call-screen whatsapp-call-screen">
+            <div className="incoming-call-badge">
+              {incomingCall.callType === 'video' ? (
+                <svg viewBox="0 0 24 24" width="22" height="22"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/></svg>
+              )}
+            </div>
+            <div className="call-avatar incoming-avatar">
               {incomingCall.callerAvatar ? (
                 <img src={incomingCall.callerAvatar} alt="" />
               ) : (
@@ -2500,7 +2560,7 @@ export default function ChatPage() {
             </div>
             <div className="call-name">{incomingCall.callerName}</div>
             <div className="call-status-text">Incoming {incomingCall.callType} call...</div>
-            <div className="call-controls">
+            <div className="call-controls incoming-controls">
               <button className="call-btn call-answer" onClick={() => answerCall(
                 incomingCall.callerId,
                 incomingCall.callerName,
@@ -2524,25 +2584,41 @@ export default function ChatPage() {
 
       {/* ── ACTIVE CALL OVERLAY ── */}
       {callActive && (
-        <div className="call-overlay" id="call-overlay">
-          <div className="call-screen">
+        <div className={`call-overlay ${callType === 'video' ? 'video-call-overlay' : 'voice-call-overlay'}`} id="call-overlay">
+          <div className={`call-screen whatsapp-call-screen ${callType === 'video' ? 'video-call-screen' : 'voice-call-screen'}`}>
             {callType === 'video' ? (
               <div className="video-call-container">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`local-video filter-${videoFilter}`}
-                  style={{ transform: 'scaleX(-1)' }}
-                />
                 <video
                   ref={remoteVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="remote-video"
+                  className={`remote-video${remoteVideoReady ? ' ready' : ''}`}
                 />
+                {!remoteVideoReady && (
+                  <div className="video-placeholder remote-placeholder">
+                    <div className="avatar avatar-xl">
+                      <div className="avatar-default" style={{ fontSize: 32 }}>
+                        {Utils.getInitials(callName)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="local-video-wrap">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`local-video filter-${videoFilter}${localVideoReady && callCameraOn ? ' ready' : ''}`}
+                    style={{ transform: 'scaleX(-1)' }}
+                  />
+                  {(!localVideoReady || !callCameraOn) && (
+                    <div className="local-video-off">
+                      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z" fill="currentColor"/></svg>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="call-avatar">
@@ -2559,7 +2635,7 @@ export default function ChatPage() {
             {/* Audio elements for all call types */}
             <audio ref={localAudioRef} autoPlay muted style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
             <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
-            <div className="call-info">
+            <div className={`call-info ${callType === 'video' ? 'video-call-info' : ''}`}>
               <div className="call-name" id="call-name">{callName}</div>
               <div className="call-status-text" id="call-status-text">{callStatus}</div>
               {callDuration > 0 && (
@@ -2571,7 +2647,7 @@ export default function ChatPage() {
               </div>
               {callType === 'video' && (
                 <>
-                  <div className="video-quality-selector">
+                  <div className="video-quality-selector call-floating-select">
                     <select
                       value={callVideoQuality}
                       onChange={(e) => setCallVideoQuality(e.target.value)}
@@ -2582,7 +2658,7 @@ export default function ChatPage() {
                       <option value="FHD">FHD</option>
                     </select>
                   </div>
-                  <div className="video-filter-selector">
+                  <div className="video-filter-selector call-floating-select">
                     <select
                       value={videoFilter}
                       onChange={(e) => setVideoFilter(e.target.value)}
@@ -2604,7 +2680,7 @@ export default function ChatPage() {
                 <div className="captions-text">{captionsText}</div>
               </div>
             )}
-            <div className="call-controls">
+            <div className={`call-controls ${callType === 'video' ? 'video-call-controls' : ''}`}>
               <button
                 className={`call-btn call-mute${callMuted ? ' active' : ''}`}
                 id="call-mute-btn"

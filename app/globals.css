@@ -971,7 +971,7 @@ select {
 .call-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.92);
+  background: #060606;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -985,6 +985,23 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 20px;
+}
+
+.whatsapp-call-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(37, 211, 102, 0.16), transparent 32%),
+    #080808;
+}
+
+.voice-call-screen,
+.incoming-call-screen {
+  padding: 32px 20px;
 }
 
 .call-name {
@@ -1006,6 +1023,8 @@ select {
   display: flex;
   gap: 20px;
   margin-top: 20px;
+  align-items: center;
+  justify-content: center;
 }
 
 .call-btn {
@@ -1063,6 +1082,34 @@ select {
   animation: slideUp 0.3s ease;
 }
 
+.incoming-call-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.incoming-avatar {
+  margin-top: 8px;
+}
+
+.call-avatar img,
+.incoming-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.incoming-controls {
+  gap: clamp(48px, 16vw, 120px);
+  margin-top: 36px;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(100%);
@@ -1077,30 +1124,89 @@ select {
 
 /* Video call container */
 .video-call-container {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  background: #050505;
+  overflow: hidden;
+}
+
+.video-call-screen {
+  justify-content: flex-start;
+}
+
+.video-call-overlay {
+  background: #050505;
+}
+
+.voice-call-overlay {
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.local-video-wrap {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: 16px;
+  width: clamp(104px, 28vw, 156px);
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: #151515;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  z-index: 12;
 }
 
 .local-video {
-  position: absolute;
-  bottom: 120px;
-  right: 20px;
-  width: 120px;
-  height: 160px;
-  border-radius: 12px;
-  object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  z-index: 10;
-}
-
-.remote-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #1a1a1a;
+  opacity: 0;
+}
+
+.local-video.ready {
+  opacity: 1;
+}
+
+.local-video-off {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.75);
+  background: #1c1c1c;
+}
+
+.remote-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #050505;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.remote-video.ready {
+  opacity: 1;
+}
+
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at center, rgba(37, 211, 102, 0.18), transparent 30%),
+    #070707;
+}
+
+.remote-placeholder {
+  z-index: 1;
 }
 
 /* Call info section */
@@ -1110,6 +1216,30 @@ select {
   align-items: center;
   gap: 8px;
   margin-top: 20px;
+}
+
+.video-call-info {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 18px);
+  left: 18px;
+  right: clamp(136px, 34vw, 190px);
+  z-index: 14;
+  align-items: flex-start;
+  text-align: left;
+  gap: 5px;
+  margin-top: 0;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+}
+
+.video-call-info .call-name {
+  font-size: clamp(22px, 5vw, 30px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.video-call-info .call-status-text,
+.video-call-info .call-duration {
+  font-size: 14px;
 }
 
 /* Network quality indicator */
@@ -1147,6 +1277,10 @@ select {
 /* Video quality selector */
 .video-quality-selector {
   margin-top: 8px;
+}
+
+.call-floating-select {
+  display: none;
 }
 
 .quality-select {
@@ -1197,7 +1331,7 @@ select {
 /* Captions overlay */
 .captions-overlay {
   position: absolute;
-  bottom: 140px;
+  bottom: 124px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.7);
@@ -1206,6 +1340,58 @@ select {
   border-radius: 8px;
   max-width: 80%;
   z-index: 100;
+}
+
+.video-call-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 16;
+  flex-wrap: wrap;
+  gap: clamp(10px, 3vw, 18px);
+  padding: 16px 18px;
+  margin-top: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), rgba(0, 0, 0, 0));
+}
+
+.video-call-controls .call-btn {
+  width: clamp(48px, 12vw, 60px);
+  height: clamp(48px, 12vw, 60px);
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 560px) {
+  .video-call-info {
+    top: calc(env(safe-area-inset-top) + 14px);
+    left: 14px;
+    right: 130px;
+  }
+
+  .local-video-wrap {
+    right: 12px;
+    width: 104px;
+    border-radius: 12px;
+  }
+
+  .video-call-controls {
+    gap: 9px;
+    padding: 14px 10px;
+  }
+
+  .video-call-controls .call-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .video-call-controls .call-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .call-name {
+    font-size: 24px;
+  }
 }
 
 .captions-text {

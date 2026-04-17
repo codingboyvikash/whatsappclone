@@ -2100,6 +2100,266 @@ select {
   width: 100%;
 }
 
+/* WhatsApp-style profile screens */
+.profile-modal {
+  width: min(430px, 100vw);
+  height: min(760px, 100vh);
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  overflow: hidden;
+  background: #0b141a;
+}
+
+.profile-modal .modal-header {
+  height: 58px;
+  background: #202c33;
+  border-bottom: none;
+  color: #e9edef;
+}
+
+.profile-modal .modal-header h3 {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.profile-modal-body {
+  height: calc(100% - 58px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  overflow-y: auto;
+  background: #0b141a;
+}
+
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px 22px;
+  background: #111b21;
+}
+
+.profile-photo-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.profile-avatar-xl {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  overflow: visible;
+}
+
+.profile-avatar-xl .avatar {
+  width: 190px;
+  height: 190px;
+  font-size: 58px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+}
+
+.profile-camera-overlay {
+  position: absolute;
+  inset: 0;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.46);
+  cursor: pointer;
+}
+
+.profile-camera-overlay::after {
+  content: "CHANGE PHOTO";
+  position: absolute;
+  top: 112px;
+  width: 86px;
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 500;
+  text-align: center;
+}
+
+.profile-hero-name {
+  margin-top: 18px;
+  color: #e9edef;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 400;
+  text-align: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.profile-hero-subtitle {
+  margin-top: 4px;
+  color: #8696a0;
+  font-size: 14px;
+}
+
+.profile-inline-input {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid #00a884;
+  outline: none;
+  background: transparent;
+  color: #e9edef;
+}
+
+.profile-name-input {
+  max-width: 320px;
+  padding: 4px 8px 8px;
+  font-size: 23px;
+  text-align: center;
+}
+
+.profile-about-input {
+  min-height: 48px;
+  resize: vertical;
+  padding: 4px 0 8px;
+  font-size: 15px;
+}
+
+.profile-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: #0b141a;
+}
+
+.profile-icon-action {
+  min-height: 76px;
+  border: 0;
+  background: #111b21;
+  color: #00a884;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.profile-icon-action:hover {
+  background: #182229;
+}
+
+.profile-info-card {
+  padding: 15px 24px;
+  background: #111b21;
+}
+
+.profile-info-label {
+  margin-bottom: 8px;
+  color: #00a884;
+  font-size: 14px;
+}
+
+.profile-info-value {
+  color: #e9edef;
+  font-size: 16px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.profile-phone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #e9edef;
+  font-size: 16px;
+}
+
+.profile-phone-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #00a884;
+}
+
+.profile-phone-actions .icon-btn {
+  color: #00a884;
+}
+
+.profile-bottom-actions {
+  margin-top: auto;
+  padding: 10px 0 18px;
+}
+
+.profile-save-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 18px;
+}
+
+.profile-primary-btn,
+.profile-secondary-btn,
+.profile-danger-row {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.profile-primary-btn {
+  border-radius: 24px;
+  background: #00a884;
+  color: #06130f;
+}
+
+.profile-secondary-btn {
+  border-radius: 24px;
+  background: transparent;
+  color: #00a884;
+  border: 1px solid #00a884;
+}
+
+.profile-danger-row {
+  min-height: 52px;
+  text-align: left;
+  padding: 0 24px;
+  background: #111b21;
+  color: #f15c4f;
+}
+
+.profile-danger-row:hover {
+  background: #182229;
+}
+
+@media (max-width: 560px) {
+  .profile-modal {
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .profile-avatar-xl,
+  .profile-avatar-xl .avatar,
+  .profile-camera-overlay {
+    width: 164px;
+    height: 164px;
+  }
+
+  .profile-camera-overlay::after {
+    top: 96px;
+  }
+}
+
 .settings-section {
   padding: 0 16px 16px;
 }

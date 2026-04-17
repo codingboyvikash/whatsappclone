@@ -2214,46 +2214,25 @@ export default function ChatPage() {
               </button>
               <h3>Profile</h3>
             </div>
-            <div className="modal-body profile-modal-body" style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              padding: '20px 0',
-              background: '#111b21',
-              minHeight: '400px'
-            }}>
-              {/* Profile Avatar Section */}
-              <div style={{ position: 'relative', marginBottom: '20px' }}>
+            <div className={`modal-body profile-modal-body ${profileUser._id?.toString() === currentUser?._id?.toString() ? 'my-profile-body' : 'contact-profile-body'}`}>
+              <div className="profile-hero">
                 <div
                   onClick={() => !profileEditMode && (profileEditAvatar || profileUser.avatar) && setShowProfileImageViewer(true)}
-                  style={{ cursor: profileEditAvatar || profileUser.avatar ? 'pointer' : 'default' }}
+                  className="profile-photo-button"
                 >
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <Avatar user={{ ...profileUser, avatar: profileEditAvatar || profileUser.avatar }} size="lg" />
+                  <div className="profile-avatar-xl">
+                    <Avatar user={{ ...profileUser, avatar: profileEditAvatar || profileUser.avatar }} />
                     {profileEditMode && (
-                      <div 
+                      <button
+                        type="button"
                         className="profile-camera-overlay"
                         onClick={(e) => { e.stopPropagation(); profileFileInputRef.current?.click(); }}
-                        style={{
-                          position: 'absolute',
-                          bottom: '0',
-                          right: '0',
-                          width: '36px',
-                          height: '36px',
-                          backgroundColor: '#008069',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          border: '3px solid #111b21',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                        }}
+                        title="Change photo"
                       >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9 3 7.17 5H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 14.5A4.5 4.5 0 1 1 12 8a4.5 4.5 0 0 1 0 9.5zm0-2A2.5 2.5 0 1 0 12 10a2.5 2.5 0 0 0 0 5.5z"/>
                         </svg>
-                      </div>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -2267,64 +2246,51 @@ export default function ChatPage() {
                     if (file) uploadProfileAvatar(file);
                   }}
                 />
-              </div>
-
-              {/* Profile Info */}
-              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                <div style={{ 
-                  fontSize: '20px', 
-                  fontWeight: '500', 
-                  color: '#e9edef',
-                  marginBottom: '4px'
-                }}>
+                <div className="profile-hero-name">
                   {profileEditMode ? (
                     <input
                       type="text"
                       value={profileEditName}
                       onChange={(e) => setProfileEditName(e.target.value)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: profileEditMode ? '2px solid #008069' : 'none',
-                        color: '#e9edef',
-                        fontSize: '20px',
-                        fontWeight: '500',
-                        textAlign: 'center',
-                        outline: 'none',
-                        padding: '4px 8px'
-                      }}
+                      className="profile-inline-input profile-name-input"
                       placeholder="Your name"
                     />
                   ) : (
                     profileUser.name || 'Unknown'
                   )}
                 </div>
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: '#8696a0',
-                  marginBottom: '16px',
-                  minHeight: '20px'
-                }}>
+                <div className="profile-hero-subtitle">
+                  {profileUser._id?.toString() === currentUser?._id?.toString() ? 'My profile' : (profileUser.online ? 'online' : profileUser.lastSeen ? Utils.formatLastSeen(profileUser.lastSeen) : 'Contact info')}
+                </div>
+              </div>
+
+              {profileUser._id?.toString() !== currentUser?._id?.toString() && (
+                <div className="profile-action-grid">
+                  <button className="profile-icon-action" onClick={() => { closeProfile(); initiateCall('voice'); }}>
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.61 21 3 13.39 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.24.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/></svg>
+                    <span>Audio</span>
+                  </button>
+                  <button className="profile-icon-action" onClick={() => { closeProfile(); initiateCall('video'); }}>
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/></svg>
+                    <span>Video</span>
+                  </button>
+                  <button className="profile-icon-action" onClick={closeProfile}>
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/></svg>
+                    <span>Message</span>
+                  </button>
+                </div>
+              )}
+
+              <div className="profile-info-card">
+                <div className="profile-info-label">About</div>
+                <div className="profile-info-value">
                   {profileEditMode ? (
                     <textarea
                       value={profileEditAbout}
                       onChange={(e) => setProfileEditAbout(e.target.value)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: '2px solid #008069',
-                        color: '#8696a0',
-                        fontSize: '14px',
-                        textAlign: 'center',
-                        outline: 'none',
-                        padding: '4px 8px',
-                        resize: 'none',
-                        minHeight: '20px',
-                        maxHeight: '60px',
-                        width: '200px'
-                      }}
+                      className="profile-inline-input profile-about-input"
                       placeholder="Hey there! I am using WhatsApp"
-                      rows={1}
+                      rows={2}
                     />
                   ) : (
                     profileUser.about || 'Hey there! I am using WhatsApp'
@@ -2332,125 +2298,45 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Phone Number */}
               {profileUser.phone && (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center',
-                  marginBottom: '24px',
-                  padding: '0 20px',
-                  width: '100%'
-                }}>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#8696a0',
-                    marginBottom: '4px',
-                    textAlign: 'center'
-                  }}>
-                    Phone number
-                  </div>
-                  <div style={{ 
-                    fontSize: '16px', 
-                    color: '#e9edef',
-                    textAlign: 'center'
-                  }}>
-                    {profileUser.phone}
+                <div className="profile-info-card">
+                  <div className="profile-info-label">Phone</div>
+                  <div className="profile-phone-row">
+                    <span>{profileUser.phone}</span>
+                    {profileUser._id?.toString() !== currentUser?._id?.toString() && (
+                      <div className="profile-phone-actions">
+                        <button className="icon-btn" title="Audio call" onClick={() => { closeProfile(); initiateCall('voice'); }}>
+                          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.61 21 3 13.39 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.24.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/></svg>
+                        </button>
+                        <button className="icon-btn" title="Video call" onClick={() => { closeProfile(); initiateCall('video'); }}>
+                          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/></svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div style={{ width: '100%', padding: '0 20px', marginTop: 'auto' }}>
+              <div className="profile-bottom-actions">
                 {profileUser._id?.toString() === currentUser?._id?.toString() ? (
                   profileEditMode ? (
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button 
-                        onClick={saveProfileChanges}
-                        style={{
-                          flex: 1,
-                          padding: '12px',
-                          backgroundColor: '#008069',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          fontWeight: '500',
-                          cursor: 'pointer'
-                        }}
-                      >
+                    <div className="profile-save-row">
+                      <button className="profile-primary-btn" onClick={saveProfileChanges}>
                         Save
                       </button>
-                      <button 
-                        onClick={() => setProfileEditMode(false)}
-                        style={{
-                          flex: 1,
-                          padding: '12px',
-                          backgroundColor: 'transparent',
-                          color: '#008069',
-                          border: '1px solid #008069',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          fontWeight: '500',
-                          cursor: 'pointer'
-                        }}
-                      >
+                      <button className="profile-secondary-btn" onClick={() => setProfileEditMode(false)}>
                         Cancel
                       </button>
                     </div>
                   ) : (
-                    <button 
-                      onClick={() => setProfileEditMode(true)}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: 'transparent',
-                        color: '#008069',
-                        border: '1px solid #008069',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        cursor: 'pointer'
-                      }}
-                    >
+                    <button className="profile-secondary-btn" onClick={() => setProfileEditMode(true)}>
                       Edit profile
                     </button>
                   )
                 ) : (
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button 
-                      onClick={() => { closeProfile(); initiateCall('voice'); }}
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        backgroundColor: 'transparent',
-                        color: '#008069',
-                        border: '1px solid #008069',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Voice call
-                    </button>
-                    <button 
-                      onClick={() => { closeProfile(); initiateCall('video'); }}
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        backgroundColor: 'transparent',
-                        color: '#008069',
-                        border: '1px solid #008069',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Video call
-                    </button>
-                  </div>
+                  <button className="profile-danger-row">
+                    Block {profileUser.name || 'contact'}
+                  </button>
                 )}
               </div>
             </div>

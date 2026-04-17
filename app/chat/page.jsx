@@ -202,6 +202,8 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const recognitionRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const remoteAudioSourceRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -210,6 +212,7 @@ export default function ChatPage() {
   const remoteVideoRef = useRef(null);
   const localAudioRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const bufferedIceCandidatesRef = useRef([]);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -223,6 +226,116 @@ export default function ChatPage() {
   const statusPausedRef = useRef(false);
 
   const { socket } = useSocket(token);
+
+  const playMediaElement = useCallback((element) => {
+    if (!element) return;
+    const playPromise = element.play?.();
+    if (playPromise?.catch) {
+      playPromise.catch((err) => {
+        console.warn('Media autoplay was blocked or interrupted:', err);
+      });
+    }
+  }, []);
+
+  const unlockCallAudio = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      try {
+        await audioContextRef.current.resume();
+      } catch (err) {
+        console.warn('Could not unlock call audio:', err);
+      }
+    }
+  }, []);
+
+  const connectRemoteAudioOutput = useCallback((remoteStream) => {
+    if (!remoteStream?.getAudioTracks().length || !audioContextRef.current) return;
+
+    try {
+      remoteAudioSourceRef.current?.disconnect();
+      remoteAudioSourceRef.current = audioContextRef.current.createMediaStreamSource(remoteStream);
+      remoteAudioSourceRef.current.connect(audioContextRef.current.destination);
+    } catch (err) {
+      console.warn('Could not connect remote audio output:', err);
+    }
+  }, []);
+
+  const startRemoteAudio = useCallback(async (remoteStream) => {
+    if (!remoteStream?.getAudioTracks().length) {
+      console.warn('No remote audio track available to play');
+      return;
+    }
+
+    await unlockCallAudio();
+
+    const remoteAudio = remoteAudioRef.current;
+    if (remoteAudio) {
+      try {
+        remoteAudio.autoplay = true;
+        remoteAudio.muted = false;
+        remoteAudio.volume = 1;
+        remoteAudio.srcObject = remoteStream;
+
+        if (typeof remoteAudio.setSinkId === 'function') {
+          await remoteAudio.setSinkId('default');
+        }
+
+        await remoteAudio.play();
+        console.log('Remote audio playback started:', remoteStream.getAudioTracks().map((track) => ({
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        })));
+      } catch (err) {
+        console.warn('Remote audio element playback failed:', err);
+      }
+    }
+
+    connectRemoteAudioOutput(remoteStream);
+  }, [connectRemoteAudioOutput, unlockCallAudio]);
+
+  const attachCallStreams = useCallback(() => {
+    const localStream = localStreamRef.current;
+    const remoteStream = remoteStreamRef.current;
+
+    if (localStream) {
+      if (callType === 'video' && localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
+        playMediaElement(localVideoRef.current);
+      }
+      if (localAudioRef.current) {
+        localAudioRef.current.srcObject = localStream;
+        playMediaElement(localAudioRef.current);
+      }
+    }
+
+    if (remoteStream) {
+      if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        playMediaElement(remoteVideoRef.current);
+      }
+      if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
+        remoteAudioRef.current.muted = false;
+        remoteAudioRef.current.volume = 1;
+        remoteAudioRef.current.srcObject = remoteStream;
+        playMediaElement(remoteAudioRef.current);
+        startRemoteAudio(remoteStream);
+      }
+    }
+  }, [callType, playMediaElement, startRemoteAudio]);
+
+  useEffect(() => {
+    if (!callActive) return;
+    attachCallStreams();
+  }, [callActive, callType, attachCallStreams]);
 
   useEffect(() => {
     return () => {
@@ -402,6 +515,18 @@ export default function ChatPage() {
       try {
         if (peerConnectionRef.current && answer) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          // Process any buffered ICE candidates
+          if (bufferedIceCandidatesRef.current.length > 0) {
+            console.log('Processing buffered ICE candidates (caller):', bufferedIceCandidatesRef.current.length);
+            for (const candidate of bufferedIceCandidatesRef.current) {
+              try {
+                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (err) {
+                console.error('Error adding buffered ICE candidate:', err);
+              }
+            }
+            bufferedIceCandidatesRef.current = [];
+          }
         }
         setCallStatus('Connected');
         setCallDbId(dbCallId);
@@ -419,10 +544,7 @@ export default function ChatPage() {
           } else {
             console.log('Remote description not set yet, buffering ICE candidate');
             // Buffer the candidate until remote description is set
-            if (!window.bufferedIceCandidates) {
-              window.bufferedIceCandidates = [];
-            }
-            window.bufferedIceCandidates.push(candidate);
+            bufferedIceCandidatesRef.current.push(candidate);
           }
         }
       } catch (err) {
@@ -431,16 +553,16 @@ export default function ChatPage() {
     });
 
     socket.on('call_rejected', () => {
-      endCall();
+      endCall({ notifyPeer: false });
       alert('Call rejected');
     });
 
     socket.on('call_ended', () => {
-      endCall();
+      endCall({ notifyPeer: false });
     });
 
     socket.on('call_unavailable', () => {
-      endCall();
+      endCall({ notifyPeer: false });
       alert('User unavailable');
     });
 
@@ -591,17 +713,10 @@ export default function ChatPage() {
   }
 
   async function initiateCall(type) {
-    console.log('=== VOICE CALL DEBUG: initiateCall started ===');
+    console.log('=== CALL DEBUG: initiateCall started ===');
     console.log('Call type:', type);
     console.log('Current chat ID:', currentChatId);
     console.log('Socket available:', !!socket);
-    
-    // Test microphone first
-    const micTest = await testMicrophone();
-    if (!micTest) {
-      alert('Microphone access denied. Please allow microphone access.');
-      return;
-    }
     
     if (!currentChatId || !socket) return;
     const chat = chats.find((c) => c._id === currentChatId);
@@ -612,6 +727,8 @@ export default function ChatPage() {
     console.log('Other user:', other);
 
     try {
+      await unlockCallAudio();
+
       // Get local media stream
       const constraints = {
         audio: true,
@@ -631,9 +748,14 @@ export default function ChatPage() {
       localStreamRef.current = stream;
 
       // Set local media streams immediately
-      if (type === 'video' && localVideoRef.current) {
-        console.log('Setting video stream to localVideoRef');
-        localVideoRef.current.srcObject = stream;
+      if (type === 'video') {
+        console.log('Video call - checking localVideoRef:', localVideoRef.current);
+        if (localVideoRef.current) {
+          console.log('Setting video stream to localVideoRef');
+          localVideoRef.current.srcObject = stream;
+        } else {
+          console.log('ERROR: localVideoRef.current is null for video call');
+        }
       } else if (type === 'voice' && localAudioRef.current) {
         console.log('Setting audio stream to localAudioRef');
         console.log('localAudioRef.current:', localAudioRef.current);
@@ -665,33 +787,17 @@ export default function ChatPage() {
         console.log('Event:', event);
         console.log('Event streams:', event.streams);
         
-        if (event.streams && event.streams.length > 0) {
-          const remoteStream = event.streams[0];
-          console.log('Remote stream:', remoteStream);
-          console.log('Remote audio tracks:', remoteStream.getAudioTracks());
-          console.log('Remote video tracks:', remoteStream.getVideoTracks());
-          
-          remoteStreamRef.current = remoteStream;
-          
-          // Handle video streams
-          if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
-            console.log('Setting remote video stream');
-            remoteVideoRef.current.srcObject = remoteStream;
-          }
-          
-          // Handle audio streams for voice calls
-          if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
-            console.log('Setting remote audio stream');
-            console.log('remoteAudioRef.current:', remoteAudioRef.current);
-            remoteAudioRef.current.srcObject = remoteStream;
-            console.log('Remote audio stream set');
-          } else {
-            console.log('No remote audio tracks found or audio element not available');
-            console.log('remoteAudioRef.current:', remoteAudioRef.current);
-          }
-        } else {
-          console.log('No streams in ontrack event');
+        const remoteStream = event.streams?.[0] || remoteStreamRef.current || new MediaStream();
+        if (!event.streams?.length && event.track && !remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+          remoteStream.addTrack(event.track);
         }
+
+        console.log('Remote stream:', remoteStream);
+        console.log('Remote audio tracks:', remoteStream.getAudioTracks());
+        console.log('Remote video tracks:', remoteStream.getVideoTracks());
+
+        remoteStreamRef.current = remoteStream;
+        attachCallStreams();
       };
 
       // ICE candidate handling
@@ -702,6 +808,14 @@ export default function ChatPage() {
             candidate: event.candidate
           });
         }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('Call connection state:', pc.connectionState);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('Call ICE state:', pc.iceConnectionState);
       };
 
       // Create offer
@@ -741,6 +855,8 @@ export default function ChatPage() {
     console.log('Call ID:', callId);
     
     try {
+      await unlockCallAudio();
+
       const constraints = {
         audio: true,
         video: callType === 'video' ? {
@@ -778,18 +894,15 @@ export default function ChatPage() {
       });
 
       pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
+        const remoteStream = event.streams?.[0] || remoteStreamRef.current || new MediaStream();
+        if (!event.streams?.length && event.track && !remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+          remoteStream.addTrack(event.track);
+        }
+        console.log('=== VOICE CALL DEBUG: answer ontrack event ===');
+        console.log('Answer remote audio tracks:', remoteStream.getAudioTracks());
+        console.log('Answer remote video tracks:', remoteStream.getVideoTracks());
         remoteStreamRef.current = remoteStream;
-        
-        // Handle video streams
-        if (remoteVideoRef.current && remoteStream.getVideoTracks().length > 0) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-        
-        // Handle audio streams for voice calls
-        if (remoteAudioRef.current && remoteStream.getAudioTracks().length > 0) {
-          remoteAudioRef.current.srcObject = remoteStream;
-        }
+        attachCallStreams();
       };
 
       pc.onicecandidate = (event) => {
@@ -801,19 +914,27 @@ export default function ChatPage() {
         }
       };
 
+      pc.onconnectionstatechange = () => {
+        console.log('Call connection state:', pc.connectionState);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('Call ICE state:', pc.iceConnectionState);
+      };
+
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       
       // Process any buffered ICE candidates
-      if (window.bufferedIceCandidates && window.bufferedIceCandidates.length > 0) {
-        console.log('Processing buffered ICE candidates:', window.bufferedIceCandidates.length);
-        for (const candidate of window.bufferedIceCandidates) {
+      if (bufferedIceCandidatesRef.current.length > 0) {
+        console.log('Processing buffered ICE candidates:', bufferedIceCandidatesRef.current.length);
+        for (const candidate of bufferedIceCandidatesRef.current) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (err) {
             console.error('Error adding buffered ICE candidate:', err);
           }
         }
-        window.bufferedIceCandidates = [];
+        bufferedIceCandidatesRef.current = [];
       }
       
       const answer = await pc.createAnswer();
@@ -844,7 +965,7 @@ export default function ChatPage() {
     }
   }
 
-  function endCall() {
+  function endCall({ notifyPeer = true } = {}) {
     if (callDurationRef.current) {
       clearInterval(callDurationRef.current);
       callDurationRef.current = null;
@@ -868,18 +989,27 @@ export default function ChatPage() {
       peerConnectionRef.current = null;
     }
 
+    if (remoteAudioSourceRef.current) {
+      remoteAudioSourceRef.current.disconnect();
+      remoteAudioSourceRef.current = null;
+    }
+
+    // Clear buffered ICE candidates
+    bufferedIceCandidatesRef.current = [];
+
     // Stop media recorder
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
 
-    // Emit call end event
-    socket?.emit('call_end', {
-      to: callPeerId,
-      callId,
-      dbCallId: callDbId,
-      duration: callDuration
-    });
+    if (notifyPeer && callPeerId) {
+      socket?.emit('call_end', {
+        to: callPeerId,
+        callId,
+        dbCallId: callDbId,
+        duration: callDuration
+      });
+    }
 
     setCallActive(false);
     setCallStatus('Calling...');
@@ -967,9 +1097,18 @@ export default function ChatPage() {
     }
   }
 
-  function toggleSpeaker() {
-    setCallSpeakerOn(!callSpeakerOn);
-    // Note: Speaker toggle requires Web Audio API or HTMLMediaElement.setSinkId
+  async function toggleSpeaker() {
+    await unlockCallAudio();
+    attachCallStreams();
+
+    if (remoteStreamRef.current?.getAudioTracks().length) {
+      await startRemoteAudio(remoteStreamRef.current);
+      setCallSpeakerOn(true);
+      return;
+    }
+
+    console.warn('Speaker requested, but no remote audio stream is available yet');
+    setCallSpeakerOn((prev) => !prev);
   }
 
   async function toggleScreenShare() {
@@ -2401,6 +2540,7 @@ export default function ChatPage() {
                   ref={remoteVideoRef}
                   autoPlay
                   playsInline
+                  muted
                   className="remote-video"
                 />
               </div>
@@ -2411,8 +2551,14 @@ export default function ChatPage() {
                     {Utils.getInitials(callName)}
                   </div>
                 </div>
+                {/* Hidden video refs for voice calls (needed for ontrack handler) */}
+                <video ref={localVideoRef} autoPlay playsInline muted style={{ display: 'none' }} />
+                <video ref={remoteVideoRef} autoPlay playsInline muted style={{ display: 'none' }} />
               </div>
             )}
+            {/* Audio elements for all call types */}
+            <audio ref={localAudioRef} autoPlay muted style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+            <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
             <div className="call-info">
               <div className="call-name" id="call-name">{callName}</div>
               <div className="call-status-text" id="call-status-text">{callStatus}</div>
@@ -2529,19 +2675,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Hidden audio elements for all calls */}
-      <audio
-        ref={localAudioRef}
-        autoPlay
-        muted
-        style={{ display: 'none' }}
-      />
-      <audio
-        ref={remoteAudioRef}
-        autoPlay
-        playsInline
-        style={{ display: 'none' }}
-      />
     </div>
   );
 }

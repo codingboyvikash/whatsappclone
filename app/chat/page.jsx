@@ -1112,36 +1112,55 @@ export default function ChatPage() {
     try {
       const oldStream = localStreamRef.current;
       const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-      setFacingMode(newFacingMode);
-
-      const constraints = {
-        audio: true,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: newFacingMode
+      const getVideoStream = async (exactMode) => {
+        try {
+          return await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              facingMode: { exact: exactMode },
+            },
+          });
+        } catch (err) {
+          console.warn(`Exact ${exactMode} camera unavailable, trying ideal mode`, err);
+          return navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              facingMode: { ideal: exactMode },
+            },
+          });
         }
       };
 
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const videoOnlyStream = await getVideoStream(newFacingMode);
+      const newVideoTrack = videoOnlyStream.getVideoTracks()[0];
+      if (!newVideoTrack) throw new Error('No camera track found');
+
+      const audioTracks = oldStream.getAudioTracks();
+      const newStream = new MediaStream([...audioTracks, newVideoTrack]);
 
       // Replace video track in peer connection
       if (peerConnectionRef.current) {
-        const videoTrack = newStream.getVideoTracks()[0];
-        const sender = peerConnectionRef.current.getSenders().find(s => s.track.kind === 'video');
+        const sender = peerConnectionRef.current.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
-          await sender.replaceTrack(videoTrack);
+          await sender.replaceTrack(newVideoTrack);
         }
       }
 
-      // Stop old stream
-      oldStream.getTracks().forEach(track => track.stop());
+      // Stop only the old camera track. Keep microphone alive.
+      oldStream.getVideoTracks().forEach(track => track.stop());
 
       // Update local video
       localStreamRef.current = newStream;
+      setFacingMode(newFacingMode);
+      setCallCameraOn(true);
       setLocalVideoReady(newStream.getVideoTracks().some((track) => track.readyState === 'live'));
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = newStream;
+        localVideoRef.current.play?.().catch((err) => console.warn('Local camera preview play failed:', err));
       }
 
     } catch (err) {

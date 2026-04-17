@@ -2720,27 +2720,6 @@ export default function ChatPage() {
                   >
                     <svg viewBox="0 0 24 24" width="28" height="28"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 11.5V13H9v2.5L5.5 12 9 8.5V11h6V8.5l3.5 3.5-3.5 3.5z" fill="currentColor"/></svg>
                   </button>
-                  <button
-                    className={`call-btn ${screenSharing ? ' active' : ''}`}
-                    onClick={toggleScreenShare}
-                    title="Screen share"
-                  >
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0l2 4v-4h14zM4 6h16v10H4V6zm10 3H6v2h8V9zm-4 4H6v2h4v-2z" fill="currentColor"/></svg>
-                  </button>
-                  <button
-                    className={`call-btn ${callRecording ? ' active' : ''}`}
-                    onClick={toggleCallRecording}
-                    title="Record call"
-                  >
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
-                  </button>
-                  <button
-                    className={`call-btn ${closedCaptions ? ' active' : ''}`}
-                    onClick={toggleClosedCaptions}
-                    title="Closed captions"
-                  >
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5h2v-5H11v1zm3.5 0H14v-.5h-2v3h2V13H14.5v1.5h2v-5h-2v1zm-7 0H6v-.5H4v3h2V13H6.5v1.5h2v-5h-2v1z" fill="currentColor"/></svg>
-                  </button>
                 </>
               )}
               <button className="call-btn call-end" id="call-end-btn" onClick={endCall} title="End call">

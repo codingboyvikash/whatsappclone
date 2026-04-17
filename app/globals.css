@@ -994,14 +994,12 @@ select {
   min-height: 100vh;
   overflow: hidden;
   justify-content: center;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(37, 211, 102, 0.16), transparent 32%),
-    #080808;
+  background: linear-gradient(180deg, #0b211c 0%, #07120f 42%, #050606 100%);
 }
 
 .voice-call-screen,
 .incoming-call-screen {
-  padding: 32px 20px;
+  padding: 34px 20px;
 }
 
 .call-name {
@@ -1028,14 +1026,15 @@ select {
 }
 
 .call-btn {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.15);
-  transition: background 0.2s;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  transition: background 0.2s, transform 0.2s;
   cursor: pointer;
   border: none;
   color: #fff;
@@ -1043,14 +1042,16 @@ select {
 
 .call-btn:hover {
   background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .call-btn.active {
-  background: #25D366;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
 }
 
 .call-btn.call-end {
-  background: #ea4335;
+  background: #f15c4f;
 }
 
 .call-btn.call-answer {
@@ -1062,15 +1063,18 @@ select {
 }
 
 .call-btn.call-speaker.active {
-  background: #25D366;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
 }
 
 .call-btn.call-camera.active {
-  background: #25D366;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
 }
 
 .call-btn.call-mute.active {
-  background: #ea4335;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
 }
 
 /* Incoming call overlay */
@@ -1080,6 +1084,9 @@ select {
 
 .incoming-call-screen {
   animation: slideUp 0.3s ease;
+  background:
+    linear-gradient(180deg, rgba(11, 33, 28, 0.96), rgba(5, 10, 9, 0.98)),
+    #07120f;
 }
 
 .incoming-call-badge {
@@ -1107,7 +1114,8 @@ select {
 
 .incoming-controls {
   gap: clamp(48px, 16vw, 120px);
-  margin-top: 36px;
+  margin-top: auto;
+  padding-bottom: max(34px, env(safe-area-inset-bottom));
 }
 
 @keyframes slideUp {
@@ -1201,7 +1209,7 @@ select {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at center, rgba(37, 211, 102, 0.18), transparent 30%),
+    radial-gradient(circle at center, rgba(37, 211, 102, 0.14), transparent 30%),
     #070707;
 }
 
@@ -1231,6 +1239,12 @@ select {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
 }
 
+.voice-call-screen .call-info,
+.incoming-call-screen .call-name,
+.incoming-call-screen .call-status-text {
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+
 .video-call-info .call-name {
   font-size: clamp(22px, 5vw, 30px);
   max-width: 100%;
@@ -1244,7 +1258,7 @@ select {
 
 /* Network quality indicator */
 .network-quality-indicator {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -1349,16 +1363,21 @@ select {
   bottom: max(24px, env(safe-area-inset-bottom));
   z-index: 16;
   flex-wrap: wrap;
-  gap: clamp(10px, 3vw, 18px);
-  padding: 16px 18px;
+  gap: clamp(12px, 4vw, 24px);
+  padding: 34px 18px 18px;
   margin-top: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), rgba(0, 0, 0, 0));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
 }
 
 .video-call-controls .call-btn {
   width: clamp(48px, 12vw, 60px);
   height: clamp(48px, 12vw, 60px);
   backdrop-filter: blur(10px);
+}
+
+.voice-call-screen > .call-controls {
+  margin-top: auto;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
 
 @media (max-width: 560px) {

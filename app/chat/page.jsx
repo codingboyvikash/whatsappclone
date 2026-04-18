@@ -5,6 +5,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { Utils } from '@/lib/utils';
 
 const INCOMING_RINGTONE_SRC = '/assets/ringtones/ring.mp3';
+const OUTGOING_RINGTONE_SRC = '/assets/ringtones/call_outgoing.mp3';
 
 // ─── Avatar Helper ───────────────────────────────────────────────────────────
 function Avatar({ user, size = '', style = {} }) {
@@ -210,6 +211,7 @@ export default function ChatPage() {
   const audioContextRef = useRef(null);
   const remoteAudioSourceRef = useRef(null);
   const incomingRingtoneRef = useRef(null);
+  const outgoingRingtoneRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -294,6 +296,38 @@ export default function ChatPage() {
       console.warn('Incoming local MP3 ringtone could not start:', err);
     }
   }, [stopIncomingRingtone]);
+
+  const stopOutgoingRingtone = useCallback(() => {
+    const ringtone = outgoingRingtoneRef.current;
+    if (ringtone) {
+      ringtone.pause();
+      ringtone.currentTime = 0;
+    }
+
+    if (navigator.vibrate) {
+      navigator.vibrate(0);
+    }
+  }, []);
+
+  const startOutgoingRingtone = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    stopOutgoingRingtone();
+    const ringtone = outgoingRingtoneRef.current;
+    if (!ringtone) return;
+
+    try {
+      ringtone.src = OUTGOING_RINGTONE_SRC;
+      ringtone.loop = true;
+      ringtone.volume = 1;
+      ringtone.currentTime = 0;
+      await ringtone.play();
+      // optional short vibration for outgoing ring
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    } catch (err) {
+      console.warn('Outgoing local MP3 ringtone could not start:', err);
+    }
+  }, [stopOutgoingRingtone]);
 
   const connectRemoteAudioOutput = useCallback((remoteStream) => {
     if (!remoteStream?.getAudioTracks().length || !audioContextRef.current) return;
@@ -636,6 +670,8 @@ export default function ChatPage() {
 
     socket.on('call_answered', async ({ callId, answer, calleeId, dbCallId }) => {
       try {
+        stopOutgoingRingtone();
+        stopIncomingRingtone();
         if (peerConnectionRef.current && answer) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
           // Process any buffered ICE candidates
@@ -677,23 +713,27 @@ export default function ChatPage() {
 
     socket.on('call_rejected', () => {
       stopIncomingRingtone();
+      stopOutgoingRingtone();
       endCall({ notifyPeer: false });
       alert('Call rejected');
     });
 
     socket.on('call_ended', () => {
       stopIncomingRingtone();
+      stopOutgoingRingtone();
       endCall({ notifyPeer: false });
     });
 
     socket.on('call_unavailable', () => {
       stopIncomingRingtone();
+      stopOutgoingRingtone();
       endCall({ notifyPeer: false });
       alert('User unavailable');
     });
 
     return () => {
       stopIncomingRingtone();
+      stopOutgoingRingtone();
       socket.off('receive_message');
       socket.off('typing');
       socket.off('stop_typing');
@@ -942,6 +982,9 @@ export default function ChatPage() {
       // Start duration timer
       startCallDurationTimer();
 
+      // Play outgoing ringtone while waiting for answer
+      startOutgoingRingtone();
+
       socket.emit('call_user', {
         calleeId: other._id,
         callType: type,
@@ -1061,6 +1104,7 @@ export default function ChatPage() {
 
   function endCall({ notifyPeer = true } = {}) {
     stopIncomingRingtone();
+    stopOutgoingRingtone();
 
     if (callDurationRef.current) {
       clearInterval(callDurationRef.current);
@@ -1712,6 +1756,7 @@ export default function ChatPage() {
   return (
     <div className={`app${currentChatId ? ' chat-open' : ''}`} onClick={() => { setShowDropdown(false); setShowEmoji(false); setShowAttach(false); setContextMenu(null); }}>
       <audio ref={incomingRingtoneRef} src={INCOMING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
+      <audio ref={outgoingRingtoneRef} src={OUTGOING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
       <audio ref={localAudioRef} autoPlay muted playsInline style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 

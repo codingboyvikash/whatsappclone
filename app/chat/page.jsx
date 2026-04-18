@@ -235,6 +235,39 @@ export default function ChatPage() {
 
   const { socket } = useSocket(token);
 
+  // Ensure hidden audio elements exist as soon as the component mounts so refs are
+  // available before a call is initiated (prevents null refs / autoplay problems).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const createAudioIfMissing = (ref, src = null, muted = false, loop = false) => {
+      if (ref.current) return;
+      try {
+        const a = document.createElement('audio');
+        if (src) a.src = src;
+        a.autoplay = true;
+        a.playsInline = true;
+        a.muted = muted;
+        a.loop = loop;
+        a.preload = 'auto';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        ref.current = a;
+      } catch (err) {
+        console.warn('Could not create audio element for ref:', err);
+      }
+    };
+
+    createAudioIfMissing(incomingRingtoneRef, INCOMING_RINGTONE_SRC, false, true);
+    createAudioIfMissing(outgoingRingtoneRef, OUTGOING_RINGTONE_SRC, false, true);
+    createAudioIfMissing(localAudioRef, null, true, false);
+    createAudioIfMissing(remoteAudioRef, null, false, false);
+
+    return () => {
+      // Do not remove elements to avoid disrupting ongoing audio or refs.
+    };
+  }, []);
+
   const playMediaElement = useCallback((element) => {
     if (!element) return;
     const playPromise = element.play?.();

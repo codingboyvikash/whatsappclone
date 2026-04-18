@@ -1712,6 +1712,8 @@ export default function ChatPage() {
   return (
     <div className={`app${currentChatId ? ' chat-open' : ''}`} onClick={() => { setShowDropdown(false); setShowEmoji(false); setShowAttach(false); setContextMenu(null); }}>
       <audio ref={incomingRingtoneRef} src={INCOMING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
+      <audio ref={localAudioRef} autoPlay muted playsInline style={{ display: 'none' }} />
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       {/* ── SIDEBAR ── */}
       <div className="sidebar">

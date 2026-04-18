@@ -323,10 +323,12 @@ export default function ChatPage() {
       ringtone.volume = 1;
       ringtone.currentTime = 0;
       const p = ringtone.play?.();
-      if (p?.catch) p.catch((err) => console.warn('Outgoing ringtone play rejected:', err));
+      if (p && typeof p.then === 'function') {
+        p.then(() => console.log('Outgoing ringtone playing')).catch((err) => console.warn('Outgoing ringtone play rejected:', err));
+      }
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     } catch (err) {
-      console.warn('Outgoing local MP3 ringtone could not start:', err);
+      console.warn('Outgoing local MP3 ringtone could not start (exception):', err);
     }
   }, [stopOutgoingRingtone]);
 
@@ -912,6 +914,7 @@ export default function ChatPage() {
       };
 
       console.log('Media constraints:', constraints);
+      console.log('Refs before attach:', { localAudio: localAudioRef.current, outgoingRingtone: outgoingRingtoneRef.current, incomingRingtone: incomingRingtoneRef.current });
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('Local stream obtained:', stream);
       console.log('Audio tracks:', stream.getAudioTracks());
@@ -1779,8 +1782,8 @@ export default function ChatPage() {
 
   return (
     <div className={`app${currentChatId ? ' chat-open' : ''}`} onClick={() => { setShowDropdown(false); setShowEmoji(false); setShowAttach(false); setContextMenu(null); }}>
-      <audio ref={incomingRingtoneRef} src={INCOMING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
-      <audio ref={outgoingRingtoneRef} src={OUTGOING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
+      <audio ref={incomingRingtoneRef} src={INCOMING_RINGTONE_SRC} preload="auto" loop autoPlay playsInline style={{ display: 'none' }} />
+      <audio ref={outgoingRingtoneRef} src={OUTGOING_RINGTONE_SRC} preload="auto" loop autoPlay playsInline style={{ display: 'none' }} />
       <audio ref={localAudioRef} autoPlay muted playsInline style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 

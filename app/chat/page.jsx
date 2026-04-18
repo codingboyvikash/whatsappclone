@@ -317,12 +317,13 @@ export default function ChatPage() {
     if (!ringtone) return;
 
     try {
+      await unlockCallAudio();
       ringtone.src = OUTGOING_RINGTONE_SRC;
       ringtone.loop = true;
       ringtone.volume = 1;
       ringtone.currentTime = 0;
-      await ringtone.play();
-      // optional short vibration for outgoing ring
+      const p = ringtone.play?.();
+      if (p?.catch) p.catch((err) => console.warn('Outgoing ringtone play rejected:', err));
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     } catch (err) {
       console.warn('Outgoing local MP3 ringtone could not start:', err);
@@ -928,11 +929,34 @@ export default function ChatPage() {
         } else {
           console.log('ERROR: localVideoRef.current is null for video call');
         }
-      } else if (type === 'voice' && localAudioRef.current) {
-        console.log('Setting audio stream to localAudioRef');
-        console.log('localAudioRef.current:', localAudioRef.current);
-        localAudioRef.current.srcObject = stream;
-        console.log('Audio stream set to localAudioRef');
+      } else if (type === 'voice') {
+        if (localAudioRef.current) {
+          console.log('Setting audio stream to localAudioRef');
+          console.log('localAudioRef.current:', localAudioRef.current);
+          try {
+            localAudioRef.current.srcObject = stream;
+            playMediaElement(localAudioRef.current);
+            console.log('Audio stream set to localAudioRef');
+          } catch (err) {
+            console.warn('Failed to attach stream to local audio element:', err);
+          }
+        } else {
+          console.log('localAudioRef.current is null — creating fallback audio element');
+          try {
+            const a = document.createElement('audio');
+            a.autoplay = true;
+            a.muted = true; // keep local playback muted to avoid echo
+            a.playsInline = true;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.srcObject = stream;
+            localAudioRef.current = a;
+            playMediaElement(a);
+            console.log('Fallback local audio element created and stream attached');
+          } catch (err) {
+            console.error('Could not create fallback local audio element:', err);
+          }
+        }
       } else {
         console.log('ERROR: Could not find audio element for', type, 'call');
         console.log('localAudioRef.current:', localAudioRef.current);

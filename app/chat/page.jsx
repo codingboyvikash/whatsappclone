@@ -207,6 +207,8 @@ export default function ChatPage() {
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const remoteAudioSourceRef = useRef(null);
+  const ringtoneContextRef = useRef(null);
+  const ringtoneTimersRef = useRef([]);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -257,6 +259,73 @@ export default function ChatPage() {
       }
     }
   }, []);
+
+  const stopIncomingRingtone = useCallback(() => {
+    ringtoneTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+    ringtoneTimersRef.current = [];
+
+    if (ringtoneContextRef.current) {
+      ringtoneContextRef.current.close().catch(() => {});
+      ringtoneContextRef.current = null;
+    }
+
+    if (navigator.vibrate) {
+      navigator.vibrate(0);
+    }
+  }, []);
+
+  const startIncomingRingtone = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    stopIncomingRingtone();
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    try {
+      const ctx = new AudioContext();
+      ringtoneContextRef.current = ctx;
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const playTone = (frequency, startTime, duration = 0.18) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.22, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration + 0.02);
+      };
+
+      const playPattern = () => {
+        if (!ringtoneContextRef.current) return;
+        const now = ctx.currentTime + 0.02;
+        const notes = [880, 1174.66, 1046.5, 1318.51, 1174.66, 880];
+        notes.forEach((note, index) => playTone(note, now + index * 0.16, 0.12));
+
+        if (navigator.vibrate) {
+          navigator.vibrate([220, 120, 220]);
+        }
+
+        const timerId = setTimeout(playPattern, 1350);
+        ringtoneTimersRef.current.push(timerId);
+      };
+
+      playPattern();
+    } catch (err) {
+      console.warn('Incoming ringtone could not start:', err);
+    }
+  }, [stopIncomingRingtone]);
 
   const connectRemoteAudioOutput = useCallback((remoteStream) => {
     if (!remoteStream?.getAudioTracks().length || !audioContextRef.current) return;
@@ -594,6 +663,7 @@ export default function ChatPage() {
 
     socket.on('incoming_call', ({ callerId, callerName, callerAvatar, callType, callId: cid, offer, dbCallId }) => {
       setIncomingCall({ callerId, callerName, callerAvatar, callType, callId: cid, offer, dbCallId });
+      startIncomingRingtone();
     });
 
     socket.on('call_answered', async ({ callId, answer, calleeId, dbCallId }) => {
@@ -638,20 +708,24 @@ export default function ChatPage() {
     });
 
     socket.on('call_rejected', () => {
+      stopIncomingRingtone();
       endCall({ notifyPeer: false });
       alert('Call rejected');
     });
 
     socket.on('call_ended', () => {
+      stopIncomingRingtone();
       endCall({ notifyPeer: false });
     });
 
     socket.on('call_unavailable', () => {
+      stopIncomingRingtone();
       endCall({ notifyPeer: false });
       alert('User unavailable');
     });
 
     return () => {
+      stopIncomingRingtone();
       socket.off('receive_message');
       socket.off('typing');
       socket.off('stop_typing');
@@ -665,7 +739,7 @@ export default function ChatPage() {
       socket.off('call_ended');
       socket.off('call_unavailable');
     };
-  }, [socket, currentUser, currentChatId]);
+  }, [socket, currentUser, currentChatId, startIncomingRingtone, stopIncomingRingtone]);
 
   // ── Scroll to bottom ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -921,6 +995,7 @@ export default function ChatPage() {
     console.log('Call ID:', callId);
     
     try {
+      stopIncomingRingtone();
       await unlockCallAudio();
 
       const constraints = {
@@ -1017,6 +1092,8 @@ export default function ChatPage() {
   }
 
   function endCall({ notifyPeer = true } = {}) {
+    stopIncomingRingtone();
+
     if (callDurationRef.current) {
       clearInterval(callDurationRef.current);
       callDurationRef.current = null;
@@ -2478,6 +2555,7 @@ export default function ChatPage() {
                 <svg viewBox="0 0 24 24" width="32" height="32"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 0 9.39 7.61 17 17 17 .75 0 1.01-.65 1.01-1.19v-3.44c0-.54-.44-.99-.99-.99z" fill="currentColor"/></svg>
               </button>
               <button className="call-btn call-reject" onClick={() => {
+                stopIncomingRingtone();
                 socket?.emit('call_reject', { callerId: incomingCall.callerId, callId: incomingCall.callId, dbCallId: incomingCall.dbCallId });
                 setIncomingCall(null);
               }}>

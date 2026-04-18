@@ -6,6 +6,7 @@ import { Utils } from '@/lib/utils';
 
 // ─── Avatar Helper ───────────────────────────────────────────────────────────
 function Avatar({ user, size = '', style = {} }) {
+  
   const cls = `avatar${size ? ` avatar-${size}` : ''}`;
   const getAvatarUrl = (avatar) => {
     if (!avatar) return null;

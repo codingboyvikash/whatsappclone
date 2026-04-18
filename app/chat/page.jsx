@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { Utils } from '@/lib/utils';
 
+const INCOMING_RINGTONE_SRC = '/assets/ringtones/ring.mp3';
+
 // ─── Avatar Helper ───────────────────────────────────────────────────────────
 function Avatar({ user, size = '', style = {} }) {
   
@@ -207,8 +209,7 @@ export default function ChatPage() {
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const remoteAudioSourceRef = useRef(null);
-  const ringtoneContextRef = useRef(null);
-  const ringtoneTimersRef = useRef([]);
+  const incomingRingtoneRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -261,12 +262,10 @@ export default function ChatPage() {
   }, []);
 
   const stopIncomingRingtone = useCallback(() => {
-    ringtoneTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-    ringtoneTimersRef.current = [];
-
-    if (ringtoneContextRef.current) {
-      ringtoneContextRef.current.close().catch(() => {});
-      ringtoneContextRef.current = null;
+    const ringtone = incomingRingtoneRef.current;
+    if (ringtone) {
+      ringtone.pause();
+      ringtone.currentTime = 0;
     }
 
     if (navigator.vibrate) {
@@ -278,52 +277,21 @@ export default function ChatPage() {
     if (typeof window === 'undefined') return;
 
     stopIncomingRingtone();
-
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+    const ringtone = incomingRingtoneRef.current;
+    if (!ringtone) return;
 
     try {
-      const ctx = new AudioContext();
-      ringtoneContextRef.current = ctx;
+      ringtone.src = INCOMING_RINGTONE_SRC;
+      ringtone.loop = true;
+      ringtone.volume = 1;
+      ringtone.currentTime = 0;
+      await ringtone.play();
 
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
+      if (navigator.vibrate) {
+        navigator.vibrate([450, 180, 450, 900]);
       }
-
-      const playTone = (frequency, startTime, duration = 0.18) => {
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(frequency, startTime);
-
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.22, startTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(startTime);
-        oscillator.stop(startTime + duration + 0.02);
-      };
-
-      const playPattern = () => {
-        if (!ringtoneContextRef.current) return;
-        const now = ctx.currentTime + 0.02;
-        const notes = [880, 1174.66, 1046.5, 1318.51, 1174.66, 880];
-        notes.forEach((note, index) => playTone(note, now + index * 0.16, 0.12));
-
-        if (navigator.vibrate) {
-          navigator.vibrate([220, 120, 220]);
-        }
-
-        const timerId = setTimeout(playPattern, 1350);
-        ringtoneTimersRef.current.push(timerId);
-      };
-
-      playPattern();
     } catch (err) {
-      console.warn('Incoming ringtone could not start:', err);
+      console.warn('Incoming local MP3 ringtone could not start:', err);
     }
   }, [stopIncomingRingtone]);
 
@@ -1743,6 +1711,7 @@ export default function ChatPage() {
 
   return (
     <div className={`app${currentChatId ? ' chat-open' : ''}`} onClick={() => { setShowDropdown(false); setShowEmoji(false); setShowAttach(false); setContextMenu(null); }}>
+      <audio ref={incomingRingtoneRef} src={INCOMING_RINGTONE_SRC} preload="auto" loop style={{ display: 'none' }} />
 
       {/* ── SIDEBAR ── */}
       <div className="sidebar">

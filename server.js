@@ -28,6 +28,9 @@ app.prepare().then(() => {
           '.png': 'image/png',
           '.gif': 'image/gif',
           '.webp': 'image/webp',
+          '.mp3': 'audio/mpeg',
+          '.wav': 'audio/wav',
+          '.ogg': 'audio/ogg',
         }[ext] || 'application/octet-stream';
         
         res.setHeader('Content-Type', contentType);

@@ -264,17 +264,21 @@ export default function ChatPage() {
     if (!localAudioRef.current)       localAudioRef.current       = make(null, true,  false);
     if (!remoteAudioRef.current)      remoteAudioRef.current      = make(null, false, false);
 
-    // Cleanup on unmount
-    return () => {
-      [incomingRingtoneRef, outgoingRingtoneRef, localAudioRef, remoteAudioRef].forEach((ref) => {
-        if (ref.current) {
-          ref.current.pause();
-          ref.current.srcObject = null;
-          ref.current.remove();
-          ref.current = null;
-        }
-      });
-    };
+    // NOTE: Do NOT null out refs in cleanup — React Strict Mode double-invokes
+    // effects and nulling refs breaks them for the real mount that follows.
+  }, []);
+
+  // Helper: get-or-create an audio element from a ref (failsafe for Strict Mode)
+  const getOrCreateAudio = useCallback((ref, muted = false) => {
+    if (ref.current) return ref.current;
+    const a = document.createElement('audio');
+    a.muted = muted;
+    a.playsInline = true;
+    a.preload = 'auto';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    ref.current = a;
+    return a;
   }, []);
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
@@ -303,16 +307,19 @@ export default function ChatPage() {
 
   const startIncomingRingtone = useCallback(async () => {
     stopIncomingRingtone();
+    if (!incomingRingtoneRef.current) {
+      const a = document.createElement('audio');
+      a.src = INCOMING_RINGTONE_SRC; a.loop = true; a.playsInline = true;
+      a.preload = 'auto'; a.style.display = 'none';
+      document.body.appendChild(a);
+      incomingRingtoneRef.current = a;
+    }
     const r = incomingRingtoneRef.current;
-    if (!r) return;
     try {
-      r.currentTime = 0;
-      r.volume = 1;
+      r.currentTime = 0; r.volume = 1;
       await r.play();
       if (navigator.vibrate) navigator.vibrate([450, 180, 450, 900]);
-    } catch (err) {
-      console.warn('Incoming ringtone blocked:', err);
-    }
+    } catch (err) { console.warn('Incoming ringtone blocked:', err); }
   }, [stopIncomingRingtone]);
 
   const stopOutgoingRingtone = useCallback(() => {
@@ -324,16 +331,19 @@ export default function ChatPage() {
   const startOutgoingRingtone = useCallback(async () => {
     stopOutgoingRingtone();
     await unlockCallAudio();
+    if (!outgoingRingtoneRef.current) {
+      const a = document.createElement('audio');
+      a.src = OUTGOING_RINGTONE_SRC; a.loop = true; a.playsInline = true;
+      a.preload = 'auto'; a.style.display = 'none';
+      document.body.appendChild(a);
+      outgoingRingtoneRef.current = a;
+    }
     const r = outgoingRingtoneRef.current;
-    if (!r) return;
     try {
-      r.currentTime = 0;
-      r.volume = 1;
+      r.currentTime = 0; r.volume = 1;
       await r.play();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    } catch (err) {
-      console.warn('Outgoing ringtone blocked:', err);
-    }
+    } catch (err) { console.warn('Outgoing ringtone blocked:', err); }
   }, [stopOutgoingRingtone, unlockCallAudio]);
 
   // ── Remote audio ──────────────────────────────────────────────────────────
@@ -351,7 +361,7 @@ export default function ChatPage() {
   const startRemoteAudio = useCallback(async (remoteStream) => {
     if (!remoteStream?.getAudioTracks().length) return;
     await unlockCallAudio();
-    const el = remoteAudioRef.current;
+    const el = getOrCreateAudio(remoteAudioRef, false);
     if (el) {
       try {
         el.autoplay = true;
@@ -732,9 +742,10 @@ export default function ChatPage() {
       localStreamRef.current = stream;
       setLocalVideoReady(stream.getVideoTracks().some((t) => t.readyState === 'live'));
 
-      // Attach local audio
-      const la = localAudioRef.current;
-      if (la) { la.srcObject = stream; la.muted = true; la.play?.().catch(() => {}); }
+      // Attach local audio (getOrCreateAudio ensures ref is never null)
+      const la = getOrCreateAudio(localAudioRef, true);
+      la.srcObject = stream;
+      la.play?.().catch(() => {});
 
       // Attach local video preview (if video call)
       if (type === 'video' && localVideoRef.current) {
@@ -785,8 +796,9 @@ export default function ChatPage() {
       localStreamRef.current = stream;
       setLocalVideoReady(stream.getVideoTracks().some((t) => t.readyState === 'live'));
 
-      const la = localAudioRef.current;
-      if (la) { la.srcObject = stream; la.muted = true; la.play?.().catch(() => {}); }
+      const la = getOrCreateAudio(localAudioRef, true);
+      la.srcObject = stream;
+      la.play?.().catch(() => {});
       if (callType === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
         localVideoRef.current.play?.().catch(() => {});

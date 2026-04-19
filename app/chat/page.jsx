@@ -350,6 +350,27 @@ export default function ChatPage() {
     if (!ringtone) return;
 
     try {
+      // Start outgoing ringtone immediately in the user gesture so autoplay isn't blocked.
+      try {
+        if (!outgoingRingtoneRef.current) {
+          const a = document.createElement('audio');
+          a.preload = 'auto';
+          a.playsInline = true;
+          a.loop = true;
+          a.style.display = 'none';
+          a.src = OUTGOING_RINGTONE_SRC;
+          document.body.appendChild(a);
+          outgoingRingtoneRef.current = a;
+        }
+        const _r = outgoingRingtoneRef.current;
+        _r.currentTime = 0;
+        _r.volume = 1;
+        // attempt synchronous play (still returns a promise but triggered by click)
+        _r.play?.().then(() => console.log('Outgoing ringtone started (sync)')).catch((err) => console.warn('Outgoing ringtone sync play rejected:', err));
+      } catch (err) {
+        console.warn('Failed to start outgoing ringtone synchronously:', err);
+      }
+
       await unlockCallAudio();
       ringtone.src = OUTGOING_RINGTONE_SRC;
       ringtone.loop = true;
